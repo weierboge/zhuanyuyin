@@ -1,0 +1,298 @@
+<html>
+<head>
+  <style>
+    /* 设置 body 元素为弹性盒子容器 */
+    body {
+      display: flex;
+      /* 设置主轴方向为垂直方向 */
+      flex-direction: column;
+      /* 设置主轴对齐方式为居中 */
+      justify-content: center;
+      /* 设置交叉轴对齐方式为居中 */
+      align-items: center;
+      /* 设置最小高度为视口高度 */
+      min-height: 100vh;
+    }
+
+    /* 设置文本输入框的样式 */
+    #text-input {
+      width: 600px;
+      height: 300px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      resize: none;
+    }
+
+    /* 设置按钮容器的样式 */
+    #button-container {
+      display: flex;
+      margin-top: 20px;
+    }
+
+    /* 设置按钮的样式 */
+    .button {
+      width: 100px;
+      height: 40px;
+      margin-right: 20px;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    /* 设置合成按钮的背景颜色 */
+    #synthesize-button {
+      background-color: #4CAF50;
+    }
+
+    /* 设置停止按钮的背景颜色 */
+    #stop-button {
+      background-color: #F44336;
+    }
+
+    /* 设置音色选择框的样式 */
+    #voice-select {
+      width: 200px;
+      height: 40px;
+      margin-left: auto;
+    }
+  </style>
+</head>
+<body>
+  <!-- 创建一个文本输入框 -->
+  <textarea id="text-input" placeholder="请输入要合成的文本"></textarea>
+  <!-- 创建一个按钮容器 -->
+  <div id="button-container">
+    <!-- 创建一个合成按钮 -->
+    <button id="synthesize-button" class="button">合成</button>
+    <!-- 创建一个停止按钮 -->
+    <button id="stop-button" class="button">停止</button>
+    <!-- 创建一个音色选择框 -->
+    <select id="voice-select">
+      <option value="0">标准女声</option>
+      <option value="1">标准男声</option>
+      <option value="2">精品女声</option>
+      <option value="3">精品男声</option>
+      <option value="4">精品童声</option>
+    </select>
+  </div>
+
+  <!-- 引入腾讯云 SDK -->
+  <script src="https://imgcache.qq.com/open/qcloud/video/tcplayer/tcplayer.min.js"></script>
+
+  <!-- 编写 JS 脚本 -->
+  <script>
+    // 获取页面元素
+    var textInput = document.getElementById("text-input");
+    var synthesizeButton = document.getElementById("synthesize-button");
+    var stopButton = document.getElementById("stop-button");
+    var voiceSelect = document.getElementById("voice-select");
+
+    // 定义全局变量
+    var audioContext; // 音频上下文对象
+    var source; // 音频源对象
+    var isPlaying = false; // 是否正在播放
+    var isStopped = false; // 是否被停止
+
+    // 定义腾讯云相关参数
+    var secretId = "AKIDf9JEuLiXPEuSlssPkLm3IJ5cM5q*****"; // 账号 SecretId
+    var secretKey = "HRCKlbwPhWtVvfGn914qE5O1rwc="; // 账号 SecretKey
+    var appId = "1300466766"; // 账号 AppId
+    var region = "ap-shanghai"; // 产品地域
+    var action = "TextToStreamAudio"; // 接口名称
+    var timestamp = Math.floor(Date.now() / 1000); // 当前时间戳
+    var expired = timestamp + 3600; // 签名有效期
+    var sessionId = "123"; // 请求标识
+    var modelType = 1; // 模型类型
+    var volume = 5; // 音量大小
+    var speed = 1; // 语速
+    var projectId = 0; // 项目 ID
+    var primaryLanguage = 1; // 主语言类型
+    var sampleRate = 16000; // 音频采样率
+    var codec = "pcm"; // 返回音频格式
+
+    // 定义签名生成函数
+    function getSignature() {
+      // 拼接请求参数字符串
+      var paramsString = "Action=" + action +
+        "&AppId=" + appId +
+        "&Codec=" + codec +
+        "&Expired=" + expired +
+        "&ModelType=" + modelType +
+        "&PrimaryLanguage=" + primaryLanguage +
+        "&ProjectId=" + projectId +
+        "&SampleRate=" + sampleRate +
+        "&SecretId=" + secretId +
+        "&SessionId=" + sessionId +
+        "&Speed=" + speed +
+        "&Timestamp=" + timestamp +
+        "&Volume=" + volume;
+
+      // 对参数字符串进行哈希运算，得到签名字符串
+      var signature = CryptoJS.HmacSHA1(paramsString, secretKey).toString(CryptoJS.enc.Base64);
+
+      return signature;
+    }
+
+    // 定义合成函数
+    function synthesize() {
+      // 获取文本输入框的内容
+      var text = textInput.value;
+
+      // 判断文本是否为空
+      if (!text) {
+        alert("请输入要合成的文本");
+        return;
+      }
+
+      // 获取音色选择框的值
+      var voiceType = voiceSelect.value;
+
+      // 获取签名字符串
+      var signature = getSignature();
+
+      // 创建请求对象
+      var xhr = new XMLHttpRequest();
+
+      // 设置请求方法和地址
+      xhr.open("POST", "https://tts.cloud.tencent.com/stream");
+
+      // 设置请求头部信息
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.setRequestHeader("Authorization", signature);
+
+      // 设置请求体内容，包含输入参数
+      var body = JSON.stringify({
+        Action: action,
+        AppId: appId,
+        Codec: codec,
+        Expired: expired,
+        ModelType: modelType,
+        PrimaryLanguage: primaryLanguage,
+        ProjectId: projectId,
+        SampleRate: sampleRate,
+        SecretId: secretId,
+        SessionId: sessionId,
+        Speed: speed,
+        Text: text,
+        Timestamp: timestamp,
+        VoiceType: voiceType,
+        Volume: volume
+      });
+
+      // 设置响应类型为二进制数据流
+      xhr.responseType = "arraybuffer";
+
+      // 监听响应事件
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            console.log("请求成功");
+            console.log(xhr.response);
+
+            if (!isStopped) {
+              playAudio(xhr.response); // 播放音频数据流
+            }
+          } else {
+            console.log("请求失败");
+            console.log(xhr.statusText);
+          }
+          isPlaying = false;
+          isStopped = false;
+          synthesizeButton.disabled = false; // 启用合成按钮
+          stopButton.disabled = true; // 禁用停止按钮
+          voiceSelect.disabled = false; // 启用音色选择框
+          textInput.disabled = false; // 启用文本输入框
+
+          if (source) {
+            source.stop(); // 停止音频源对象的播放
+            source.disconnect(); // 断开音频源对象与音频上下文对象的连接
+            source.onended = null; // 移除音频源对象的结束事件监听器
+          }
+          if (audioContext) {
+            audioContext.close(); // 关闭音频上下文对象，释放资源
+          }
+        }
+      };
+
+      isPlaying = true;
+      synthesizeButton.disabled = true; // 禁用合成按钮
+      stopButton.disabled = false; // 启用停止按钮
+      voiceSelect.disabled = true; // 禁用音色选择框
+      textInput.disabled = true; // 禁用文本输入框
+
+      xhr.send(body); // 发送请求
+
+    }
+        // 定义播放函数
+    function playAudio(data) {
+      // 创建音频上下文对象
+      audioContext = new AudioContext();
+
+      // 将二进制数据流解码为音频缓冲区对象
+      audioContext.decodeAudioData(data, function (buffer) {
+        // 创建音频源对象
+        source = audioContext.createBufferSource();
+
+        // 设置音频源对象的缓冲区属性
+        source.buffer = buffer;
+
+        // 连接音频源对象和音频上下文对象
+        source.connect(audioContext.destination);
+
+        // 监听音频源对象的结束事件
+        source.onended = function () {
+          console.log("播放结束");
+          isPlaying = false;
+          isStopped = false;
+          synthesizeButton.disabled = false; // 启用合成按钮
+          stopButton.disabled = true; // 禁用停止按钮
+          voiceSelect.disabled = false; // 启用音色选择框
+          textInput.disabled = false; // 启用文本输入框
+
+          if (source) {
+            source.stop(); // 停止音频源对象的播放
+            source.disconnect(); // 断开音频源对象与音频上下文对象的连接
+            source.onended = null; // 移除音频源对象的结束事件监听器
+          }
+          if (audioContext) {
+            audioContext.close(); // 关闭音频上下文对象，释放资源
+          }
+        };
+
+        // 开始播放音频源对象
+        source.start(0);
+      });
+    }
+
+    // 定义停止函数
+    function stop() {
+      isStopped = true;
+      if (isPlaying) {
+        console.log("停止播放");
+        isPlaying = false;
+        synthesizeButton.disabled = false; // 启用合成按钮
+        stopButton.disabled = true; // 禁用停止按钮
+        voiceSelect.disabled = false; // 启用音色选择框
+        textInput.disabled = false; // 启用文本输入框
+
+        if (source) {
+          source.stop(); // 停止音频源对象的播放
+          source.disconnect(); // 断开音频源对象与音频上下文对象的连接
+          source.onended = null; // 移除音频源对象的结束事件监听器
+        }
+        if (audioContext) {
+          audioContext.close(); // 关闭音频上下文对象，释放资源
+        }
+      }
+    }
+
+    // 监听合成按钮的点击事件
+    synthesizeButton.addEventListener("click", synthesize);
+
+    // 监听停止按钮的点击事件
+    stopButton.addEventListener("click", stop);
+  </script>
+</body>
+</html>
